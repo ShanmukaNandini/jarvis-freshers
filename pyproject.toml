@@ -1,0 +1,8 @@
+[project]
+name = "jarvis-for-freshers"
+version = "0.0.1"
+description = "Research-stage fresher job-search companion scaffold"
+requires-python = ">=3.11"
+dependencies = []
+
+# Choose and lock optional ADK/UI/PDF dependencies after creating the IDE kit.
