@@ -142,6 +142,8 @@ st.markdown("""
   .sidebrand span { color: #CFE3E1 !important; font-size: 0.8rem; display: block; margin-top: 0.15rem; }
 
   .small-note { color: #5C6B73 !important; font-size: 0.85rem; }
+  blockquote { border-left: 3px solid #0E7C7B; padding-left: 0.8rem; color: #22303C; }
+  ul { padding-left: 1.2rem; }
   .appfooter {
       margin-top: 2.5rem; padding-top: 0.9rem; border-top: 1px solid #E4DED3;
       color: #5C6B73 !important; font-size: 0.82rem; text-align: center;
@@ -188,8 +190,15 @@ for persistent_key in ("interests_raw", "india_only", "view_mode",
 # A queued transition is applied before the navigation widget is created.
 if "next_section" in st.session_state:
     st.session_state["nav"] = st.session_state.pop("next_section")
-section = st.radio("Sections", NAV, key="nav", horizontal=True,
-                   label_visibility="collapsed")
+step_no = {name: f"{i + 1} · {name}" for i, name in enumerate(NAV[:-1])}
+step_no[NAV[-1]] = NAV[-1]
+section = st.pills("Sections", NAV, key="nav", label_visibility="collapsed",
+                   default=NAV[0],
+                   format_func=lambda name: step_no[name])
+if section is None:  # pills allow deselecting; keep showing the last section
+    section = st.session_state.get("last_section", NAV[0])
+else:
+    st.session_state["last_section"] = section
 profile = st.session_state.get("profile")
 st.caption("PROFILE  →  OPENINGS  →  RESUME  →  SKILL GAPS  →  TRACKER  →  DIGEST")
 if profile:
@@ -222,66 +231,67 @@ if section == NAV[0]:
     st.caption("Upload or paste your real resume, or explore with the synthetic demo "
                "candidate. Uploaded files are parsed in memory for this session only.")
 
-    input_method = st.radio(
-        "How do you want to provide your resume?",
-        ["Upload a file (.txt, .pdf, .docx)", "Paste text", "Use the synthetic demo profile"],
-        horizontal=True)
+    with st.container(border=True):
+        input_method = st.radio(
+            "How do you want to provide your resume?",
+            ["Upload a file (.txt, .pdf, .docx)", "Paste text", "Use the synthetic demo profile"],
+            horizontal=True)
 
-    resume_text_draft = ""
-    uploaded = None
-    if input_method.startswith("Upload"):
-        uploaded = st.file_uploader("Drop your resume here", type=["txt", "pdf", "docx"],
-                                    help="Parsed locally in this app; nothing is sent to "
-                                         "any model or inbox.")
-        if uploaded is not None:
-            import hashlib
-            fingerprint = hashlib.sha256(uploaded.getvalue()).hexdigest()
-            if fingerprint != st.session_state.get("upload_fingerprint"):
-                try:
+        resume_text_draft = ""
+        uploaded = None
+        if input_method.startswith("Upload"):
+            uploaded = st.file_uploader("Drop your resume here", type=["txt", "pdf", "docx"],
+                                        help="Parsed locally in this app; nothing is sent to "
+                                             "any model or inbox.")
+            if uploaded is not None:
+                import hashlib
+                fingerprint = hashlib.sha256(uploaded.getvalue()).hexdigest()
+                if fingerprint != st.session_state.get("upload_fingerprint"):
+                    try:
+                        text = extract_resume_text(uploaded.name, uploaded.getvalue())
+                        st.session_state["profile"] = structure_user_resume(text)
+                        st.session_state["profile_label"] = f"Your resume ({uploaded.name})"
+                        st.session_state["upload_fingerprint"] = fingerprint
+                        st.session_state["next_section"] = NAV[1]
+                        st.rerun()
+                    except (ResumeParseError, ValueError) as exc:
+                        st.error(str(exc))
+        elif input_method.startswith("Paste"):
+            resume_text_draft = st.text_area(
+                "Paste your resume (plain text)", height=180,
+                placeholder="Priya Verma\npriya@example.com | +91-98...\nB.Tech CSE, 2026...\n"
+                            "Built a Flask API...\nSkills: Python, SQL, pandas")
+
+        st.text_input("Your interests (comma-separated - they steer matching "
+                      "and learning tips, never what you claim)",
+                      value="data, machine learning, backend", key="interests_raw")
+
+        if st.button("Build my profile", type="primary"):
+            try:
+                if input_method.startswith("Use"):
+                    st.session_state["profile"] = BASE_RESUME
+                    st.session_state["profile_label"] = "Synthetic demo candidate"
+                elif input_method.startswith("Upload"):
+                    if uploaded is None:
+                        st.warning("Choose a file first.")
+                        st.stop()
                     text = extract_resume_text(uploaded.name, uploaded.getvalue())
                     st.session_state["profile"] = structure_user_resume(text)
                     st.session_state["profile_label"] = f"Your resume ({uploaded.name})"
-                    st.session_state["upload_fingerprint"] = fingerprint
-                    st.session_state["next_section"] = NAV[1]
-                    st.rerun()
-                except (ResumeParseError, ValueError) as exc:
-                    st.error(str(exc))
-    elif input_method.startswith("Paste"):
-        resume_text_draft = st.text_area(
-            "Paste your resume (plain text)", height=180,
-            placeholder="Priya Verma\npriya@example.com | +91-98...\nB.Tech CSE, 2026...\n"
-                        "Built a Flask API...\nSkills: Python, SQL, pandas")
-
-    st.text_input("Your interests (comma-separated - they steer matching "
-                  "and learning tips, never what you claim)",
-                  value="data, machine learning, backend", key="interests_raw")
-
-    if st.button("Build my profile", type="primary"):
-        try:
-            if input_method.startswith("Use"):
-                st.session_state["profile"] = BASE_RESUME
-                st.session_state["profile_label"] = "Synthetic demo candidate"
-            elif input_method.startswith("Upload"):
-                if uploaded is None:
-                    st.warning("Choose a file first.")
-                    st.stop()
-                text = extract_resume_text(uploaded.name, uploaded.getvalue())
-                st.session_state["profile"] = structure_user_resume(text)
-                st.session_state["profile_label"] = f"Your resume ({uploaded.name})"
-            else:
-                if not resume_text_draft.strip():
-                    st.warning("Paste your resume text first.")
-                    st.stop()
-                st.session_state["profile"] = structure_user_resume(resume_text_draft)
-                st.session_state["profile_label"] = "Your pasted resume"
-            st.session_state["next_section"] = NAV[1]
-            st.rerun()
-        except ResumeParseError as exc:
-            st.error(str(exc))
-            st.stop()
-        except ValueError as exc:
-            st.error(str(exc))
-            st.stop()
+                else:
+                    if not resume_text_draft.strip():
+                        st.warning("Paste your resume text first.")
+                        st.stop()
+                    st.session_state["profile"] = structure_user_resume(resume_text_draft)
+                    st.session_state["profile_label"] = "Your pasted resume"
+                st.session_state["next_section"] = NAV[1]
+                st.rerun()
+            except ResumeParseError as exc:
+                st.error(str(exc))
+                st.stop()
+            except ValueError as exc:
+                st.error(str(exc))
+                st.stop()
 
     if profile:
         st.success(f"Profile ready: {st.session_state.get('profile_label')} - "
@@ -568,7 +578,8 @@ elif section == NAV[2]:
                 st.caption("Your base order already fit this job - only the summary "
                            "was pointed at it. Try an opening with different "
                            "requirements to see reordering.")
-        st.markdown(tailored["markdown"])
+        with st.container(border=True):
+            st.markdown(tailored["markdown"])
 
     with tab_provenance:
         st.write("Every claim links back to a fact in your profile "
@@ -671,9 +682,10 @@ elif section == NAV[4]:
 
     apps = applications(db)
     if apps:
-        st.subheader("Tracked applications")
-        for a in apps:
-            st.markdown(f"- **{a['role']}** @ {a['company']} — status: `{a['status']}`")
+        with st.container(border=True):
+            st.markdown("**Tracked applications**")
+            for a in apps:
+                st.markdown(f"- **{a['role']}** @ {a['company']} — status: `{a['status']}`")
 
     st.subheader("Synthetic inbox")
     st.write("Process the fixed set of synthetic emails against tracked applications. "
@@ -744,7 +756,8 @@ elif section == NAV[5]:
 else:
     st.markdown('<div class="stephead-plain">What this demo does NOT do</div>',
                 unsafe_allow_html=True)
-    st.markdown("""
+    with st.container(border=True):
+        st.markdown("""
 - **Job openings are LIVE by default** - fetched read-only from public
   Greenhouse career boards (one polite request per board, cached 30 minutes).
   Their requirement lists are auto-extracted keywords, so they can be
@@ -763,7 +776,7 @@ else:
   fonts) in the same one-page template as the .tex source. The .tex stays
   available for Overleaf; the app never compiles LaTeX server-side.
 - **The tracker database is temporary** - it resets when this cloud app restarts.
-""")
+        """)
     st.caption("Built for Code for a Billion · Impact area: Tech Employment for Youth")
 
 step_buttons()
