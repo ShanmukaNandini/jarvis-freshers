@@ -27,6 +27,7 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
+import hashlib
 import sqlite3
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
@@ -43,7 +44,8 @@ from jarvis.fixtures import (BASE_RESUME, JOB_FIXTURES, SYNTHETIC_APPLICATIONS,
 from jarvis.jobs import fetch_live_jobs, DEFAULT_BOARDS, safe_html, is_india_remote
 from jarvis.latex_resume import generate_tex
 from jarvis.pdf_resume import generate_pdf
-from jarvis.parsing import extract_resume_text, ResumeParseError
+from jarvis.parsing import (extract_resume_text, ResumeParseError,
+                            resume_likeness)
 from jarvis.store import (connect, save_application, record_reviewed_event,
                           events, applications, process_synthetic_fixtures,
                           run_with_retry)
@@ -209,6 +211,23 @@ def go_to(target):
     st.session_state["nav"] = target
 
 
+def _try_build_profile(text, label):
+    """Build the profile only when the text reads as a resume. Anything else
+    (a job posting, random notes) is held for an explicit user decision -
+    the profiler turns text into 'your facts', so silently accepting a job
+    description would mix the employer's requirements into them."""
+    check = resume_likeness(text)
+    if check["verdict"] != "resume":
+        st.session_state["pending_profile"] = {
+            "text": text, "label": label, "check": check}
+        st.rerun()
+    st.session_state["profile"] = structure_user_resume(text)
+    st.session_state["profile_label"] = label
+    st.session_state.pop("pending_profile", None)
+    st.session_state["next_section"] = NAV[1]
+    st.rerun()
+
+
 def step_buttons():
     index = NAV.index(section)
     back, _, forward = st.columns([1, 3, 1])
@@ -231,6 +250,42 @@ if section == NAV[0]:
     st.caption("Upload or paste your real resume, or explore with the synthetic demo "
                "candidate. Uploaded files are parsed in memory for this session only.")
 
+    pending = st.session_state.get("pending_profile")
+    if pending:
+        check = pending["check"]
+        with st.container(border=True):
+            if check["verdict"] == "job_posting":
+                st.warning(f"**{pending['label']}** looks like a job posting, not "
+                           "your resume. Building a profile from it would pull the "
+                           "employer's requirements into YOUR facts - exactly what "
+                           "this app refuses to do.")
+            else:
+                st.warning(f"**{pending['label']}** doesn't look like a resume - "
+                           "the usual signals (contact info, resume sections, "
+                           "education details) are missing.")
+            if check["concerns"]:
+                st.markdown("Job-posting phrases found: "
+                            + ", ".join(f"`{c}`" for c in check["concerns"][:8]))
+            if check["signals"]:
+                st.caption("Resume-like signals found: " + "; ".join(check["signals"]))
+            col_use, col_cancel, _ = st.columns([1, 1, 2])
+            with col_use:
+                if st.button("Use it anyway"):
+                    try:
+                        built = structure_user_resume(pending["text"])
+                    except (ResumeParseError, ValueError) as exc:
+                        st.error(str(exc))
+                    else:
+                        st.session_state["profile"] = built
+                        st.session_state["profile_label"] = pending["label"]
+                        st.session_state.pop("pending_profile", None)
+                        st.session_state["next_section"] = NAV[1]
+                        st.rerun()
+            with col_cancel:
+                if st.button("Cancel"):
+                    st.session_state.pop("pending_profile", None)
+                    st.rerun()
+
     with st.container(border=True):
         input_method = st.radio(
             "How do you want to provide your resume?",
@@ -244,18 +299,15 @@ if section == NAV[0]:
                                         help="Parsed locally in this app; nothing is sent to "
                                              "any model or inbox.")
             if uploaded is not None:
-                import hashlib
                 fingerprint = hashlib.sha256(uploaded.getvalue()).hexdigest()
-                if fingerprint != st.session_state.get("upload_fingerprint"):
+                if fingerprint != st.session_state.get("upload_handled"):
                     try:
                         text = extract_resume_text(uploaded.name, uploaded.getvalue())
-                        st.session_state["profile"] = structure_user_resume(text)
-                        st.session_state["profile_label"] = f"Your resume ({uploaded.name})"
-                        st.session_state["upload_fingerprint"] = fingerprint
-                        st.session_state["next_section"] = NAV[1]
-                        st.rerun()
                     except (ResumeParseError, ValueError) as exc:
                         st.error(str(exc))
+                    else:
+                        st.session_state["upload_handled"] = fingerprint
+                        _try_build_profile(text, f"Your resume ({uploaded.name})")
         elif input_method.startswith("Paste"):
             resume_text_draft = st.text_area(
                 "Paste your resume (plain text)", height=180,
@@ -271,21 +323,21 @@ if section == NAV[0]:
                 if input_method.startswith("Use"):
                     st.session_state["profile"] = BASE_RESUME
                     st.session_state["profile_label"] = "Synthetic demo candidate"
+                    st.session_state["next_section"] = NAV[1]
+                    st.rerun()
                 elif input_method.startswith("Upload"):
                     if uploaded is None:
                         st.warning("Choose a file first.")
                         st.stop()
                     text = extract_resume_text(uploaded.name, uploaded.getvalue())
-                    st.session_state["profile"] = structure_user_resume(text)
-                    st.session_state["profile_label"] = f"Your resume ({uploaded.name})"
+                    st.session_state["upload_handled"] = hashlib.sha256(
+                        uploaded.getvalue()).hexdigest()
+                    _try_build_profile(text, f"Your resume ({uploaded.name})")
                 else:
                     if not resume_text_draft.strip():
                         st.warning("Paste your resume text first.")
                         st.stop()
-                    st.session_state["profile"] = structure_user_resume(resume_text_draft)
-                    st.session_state["profile_label"] = "Your pasted resume"
-                st.session_state["next_section"] = NAV[1]
-                st.rerun()
+                    _try_build_profile(resume_text_draft, "Your pasted resume")
             except ResumeParseError as exc:
                 st.error(str(exc))
                 st.stop()
