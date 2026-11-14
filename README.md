@@ -3,7 +3,7 @@
 A truthful job-hunt copilot for fresh graduates, built for the **Code for a
 Billion** hackathon (impact area: **Tech Employment for Youth**).
 
-**Live demo:** https://jarvis-freshers-jdmeuquh5w8b7dnfzmb9uf.streamlit.app
+**Live demo:** https://jarvis-freshers-jdmeuqhu5w8b7dnfzmb9uf.streamlit.app
 
 Jarvis helps a fresher:
 
@@ -136,3 +136,7 @@ docs/                   research + build plan from the hackathon brief
 For hackathon evaluation. Live job postings come from public company career
 boards; all personal/demo data is synthetic. Do not commit real resumes,
 inboxes, tokens, or secrets.
+
+## Guided navigation
+
+Sections run across the top: Profile, Openings, Resume, Skill gaps, Tracker, Digest, About. A valid upload builds your profile and opens Openings automatically. The Build my profile button does the same for pasted text and the demo profile. Save & tailor on a swipe card, or Choose & tailor in List mode, opens Resume. Back and Next buttons let you move through the steps; the top navigation lets you revisit any section. Interests, filters and the selected opening stay in place across section changes.
