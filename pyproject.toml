@@ -6,3 +6,6 @@ requires-python = ">=3.11"
 dependencies = []
 
 # Choose and lock optional ADK/UI/PDF dependencies after creating the IDE kit.
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]

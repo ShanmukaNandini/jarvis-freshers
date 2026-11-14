@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "slug": "jarvis",
+  "createdAt": 1794637984871,
+  "updatedAt": 1794637984871,
+  "name": "jarvis",
+  "description": "A truthful job-hunt copilot for Indian freshers: matches live Greenhouse openings against a resume, tailors the resume using only the candidate's own facts with provenance, reports skill gaps, and tracks applications. Never auto-applies.",
+  "function": "engineering",
+  "version": "0.1.0",
+  "builtBy": "",
+  "runsAt": "unspecified",
+  "preferredModel": "gemini-2.0-flash",
+  "invocationUrl": "",
+  "authMode": "none",
+  "promptField": "prompt",
+  "responseField": "response",
+  "tags": [
+    "google-adk-py"
+  ],
+  "prompts": [
+    "jarvis-system"
+  ],
+  "evals": [
+    "jarvis-smoke"
+  ],
+  "tools": [],
+  "dataAccess": [],
+  "price": "free",
+  "origin": "built",
+  "lifecycle": "draft",
+  "kit": "google-adk-py",
+  "memoryConfig": {
+    "enabled": true,
+    "provider": "codenow-ledger",
+    "contextBudget": 2000,
+    "semantic": true
+  }
+}

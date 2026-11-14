@@ -13,3 +13,5 @@ resumes/
 .codenow/runs/
 .codenow/agent-studio/eval-runs/
 dist/
+jarvis_demo.db
+.env.local

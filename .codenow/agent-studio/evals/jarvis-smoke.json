@@ -1,0 +1,10 @@
+{
+  "name": "jarvis-smoke",
+  "description": "Smoke test for jarvis",
+  "cases": [
+    {
+      "input": "Say \"hello world\" exactly, nothing else.",
+      "expected_contains": "hello world"
+    }
+  ]
+}
