@@ -65,88 +65,88 @@ st.set_page_config(page_title="Jarvis for Freshers", page_icon="✨",
 # only standard elements and our own classes, so it survives upgrades.
 st.markdown("""
 <style>
-  :root { color-scheme: light; }
+  :root { color-scheme: dark; }
   .stApp {
-      background-color: #FAF7F2;
+      background-color: #0D1117;
       background-image:
-          radial-gradient(1100px 340px at 85% -80px, rgba(14, 124, 123, 0.10), rgba(14, 124, 123, 0)),
-          radial-gradient(900px 300px at -10% -60px, rgba(183, 121, 31, 0.07), rgba(183, 121, 31, 0));
+          radial-gradient(1100px 340px at 85% -80px, rgba(20, 184, 166, 0.16), rgba(14, 124, 123, 0)),
+          radial-gradient(900px 300px at -10% -60px, rgba(20, 184, 166, 0.06), rgba(183, 121, 31, 0));
       font-family: "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
   }
-  h1, h2, h3, h4 { color: #0F2A43; letter-spacing: -0.01em; }
+  h1, h2, h3, h4 { color: #E6EDF3; letter-spacing: -0.01em; }
   p, li { line-height: 1.55; }
   code, pre { border-radius: 10px !important; }
-  hr { border-color: #E4DED3; }
+  hr { border-color: #30363D; }
 
   .hero {
-      background: linear-gradient(120deg, #0F2A43 0%, #14424E 45%, #0E7C7B 100%);
+      background: linear-gradient(120deg, #111827 0%, #134E4A 55%, #0D9488 100%);
       border-radius: 20px; padding: 1.4rem 2rem 1.4rem 2rem; margin-bottom: 1.4rem;
-      box-shadow: 0 10px 30px rgba(15, 42, 67, 0.18);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
   }
   .hero h1 { color: #FAF7F2 !important; margin-bottom: 0.35rem; font-size: 2.3rem; }
-  .hero p  { color: #CFE3E1 !important; font-size: 1.06rem; margin-bottom: 0.9rem; max-width: 60ch; }
+  .hero p  { color: #B2F5EA !important; font-size: 1.06rem; margin-bottom: 0.9rem; max-width: 60ch; }
   .herochips { display: flex; flex-wrap: wrap; gap: 0.45rem; }
   .herochip {
-      background: rgba(250, 247, 242, 0.14); border: 1px solid rgba(250, 247, 242, 0.35);
+      background: rgba(240, 253, 250, 0.12); border: 1px solid rgba(240, 253, 250, 0.30);
       color: #FAF7F2 !important; border-radius: 999px; padding: 0.28rem 0.85rem;
       font-size: 0.82rem; font-weight: 600; letter-spacing: 0.01em;
   }
 
   .badge {
-      display: inline-block; background: #0E7C7B; color: #FAF7F2 !important;
+      display: inline-block; background: #14B8A6; color: #FAF7F2 !important;
       border-radius: 999px; padding: 0.18rem 0.75rem; font-size: 0.74rem;
       letter-spacing: 0.07em; text-transform: uppercase; font-weight: 700;
   }
-  .badge-live { background: #0E7C7B; }
+  .badge-live { background: #14B8A6; }
   .badge-offline { background: #B7791F; }
 
   .stephead {
       display: flex; align-items: center; gap: 0.7rem;
-      color: #0F2A43 !important; font-size: 1.45rem; font-weight: 700;
+      color: #E6EDF3 !important; font-size: 1.45rem; font-weight: 700;
       margin: 0.4rem 0 0.9rem 0;
   }
   .stepnum {
       display: inline-flex; align-items: center; justify-content: center;
       min-width: 2.1rem; height: 2.1rem; border-radius: 0.75rem;
-      background: linear-gradient(135deg, #0E7C7B, #14535B); color: #FAF7F2 !important;
+      background: linear-gradient(135deg, #14B8A6, #0F766E); color: #FAF7F2 !important;
       font-size: 1.0rem; font-weight: 800; box-shadow: 0 3px 10px rgba(14, 124, 123, 0.35);
   }
   .stephead-plain {
-      color: #0F2A43 !important; font-size: 1.45rem; font-weight: 700;
-      margin: 0.4rem 0 0.9rem 0; border-bottom: 2px solid #0E7C7B; padding-bottom: 0.3rem;
+      color: #E6EDF3 !important; font-size: 1.45rem; font-weight: 700;
+      margin: 0.4rem 0 0.9rem 0; border-bottom: 2px solid #14B8A6; padding-bottom: 0.3rem;
   }
 
   .swipecard {
-      background: #FFFFFF; border: 1px solid #E4DED3; border-top: 4px solid #0E7C7B;
+      background: #161B22; border: 1px solid #30363D; border-top: 4px solid #14B8A6;
       border-radius: 18px; padding: 1.7rem 1.9rem; margin: 0.6rem 0 0.4rem 0;
-      box-shadow: 0 6px 22px rgba(15, 42, 67, 0.10);
+      box-shadow: 0 6px 22px rgba(0, 0, 0, 0.35);
   }
-  .swipecard h2 { color: #0F2A43 !important; margin: 0.4rem 0 0.3rem 0; }
-  .swipemeta { color: #5C6B73 !important; font-size: 1.0rem; margin-bottom: 0.6rem; }
-  .swipedesc { color: #22303C !important; font-size: 0.95rem; margin-top: 0.7rem; }
-  .swipeprogress { color: #5C6B73 !important; font-size: 0.85rem; text-align: center; }
+  .swipecard h2 { color: #E6EDF3 !important; margin: 0.4rem 0 0.3rem 0; }
+  .swipemeta { color: #8B949E !important; font-size: 1.0rem; margin-bottom: 0.6rem; }
+  .swipedesc { color: #C9D1D9 !important; font-size: 0.95rem; margin-top: 0.7rem; }
+  .swipeprogress { color: #8B949E !important; font-size: 0.85rem; text-align: center; }
 
   .jobcard {
-      background: #FFFFFF; border: 1px solid #E4DED3; border-left: 5px solid #0E7C7B;
+      background: #161B22; border: 1px solid #30363D; border-left: 5px solid #14B8A6;
       border-radius: 14px; padding: 0.95rem 1.2rem; margin-bottom: 0.7rem;
-      box-shadow: 0 2px 10px rgba(15, 42, 67, 0.06);
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
   }
-  .jobcard h1, .jobcard h2, .jobcard h3 { color: #0F2A43 !important; margin: 0 0 0.15rem 0; }
-  .jobmeta { color: #5C6B73 !important; font-size: 0.9rem; }
+  .jobcard h1, .jobcard h2, .jobcard h3 { color: #E6EDF3 !important; margin: 0 0 0.15rem 0; }
+  .jobmeta { color: #8B949E !important; font-size: 0.9rem; }
 
   .sidebrand {
-      background: linear-gradient(135deg, #0F2A43, #0E7C7B); border-radius: 14px;
+      background: linear-gradient(135deg, #111827, #0F766E); border-radius: 14px;
       padding: 0.9rem 1.0rem; margin-bottom: 0.8rem;
   }
   .sidebrand b { color: #FAF7F2 !important; font-size: 1.02rem; }
-  .sidebrand span { color: #CFE3E1 !important; font-size: 0.8rem; display: block; margin-top: 0.15rem; }
+  .sidebrand span { color: #B2F5EA !important; font-size: 0.8rem; display: block; margin-top: 0.15rem; }
 
-  .small-note { color: #5C6B73 !important; font-size: 0.85rem; }
-  blockquote { border-left: 3px solid #0E7C7B; padding-left: 0.8rem; color: #22303C; }
+  .small-note { color: #8B949E !important; font-size: 0.85rem; }
+  blockquote { border-left: 3px solid #14B8A6; padding-left: 0.8rem; color: #C9D1D9; }
   ul { padding-left: 1.2rem; }
   .appfooter {
-      margin-top: 2.5rem; padding-top: 0.9rem; border-top: 1px solid #E4DED3;
-      color: #5C6B73 !important; font-size: 0.82rem; text-align: center;
+      margin-top: 2.5rem; padding-top: 0.9rem; border-top: 1px solid #30363D;
+      color: #8B949E !important; font-size: 0.82rem; text-align: center;
   }
 </style>
 """, unsafe_allow_html=True)
