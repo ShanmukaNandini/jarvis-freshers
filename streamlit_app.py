@@ -390,7 +390,9 @@ interests = [i.strip() for i in
 # Shared openings state (sections 2-5): live feed, ranking, selected job
 # --------------------------------------------------------------------------
 
-board_names = ", ".join(name for _, name in DEFAULT_BOARDS)
+_shown = [name for _, name in DEFAULT_BOARDS[:6]]
+board_names = (", ".join(_shown)
+               + f" and {len(DEFAULT_BOARDS) - len(_shown)} more")
 job = tailored = None
 if profile and section in NEEDS_PROFILE | {NAV[4]}:
     live = load_openings()
@@ -431,8 +433,9 @@ if section == NAV[1]:
         st.rerun()
 
     if live["jobs"]:
-        st.caption(f"Live openings fetched from public Greenhouse career boards "
-                   f"({board_names}), fresher-relevant and India/remote-leaning, "
+        st.caption(f"Live openings fetched from the public Greenhouse career boards "
+                   f"of {len(DEFAULT_BOARDS)} companies ({board_names}), "
+                   f"fresher-relevant and India/remote-leaning, "
                    f"cached for 30 minutes. Requirement lists are auto-extracted "
                    f"keywords from each posting - honest hints, not the employer's "
                    f"structured requirements.")

@@ -33,6 +33,20 @@ DEFAULT_BOARDS = [
     ("databricks", "Databricks"),
     ("okta", "Okta"),
     ("fivetran", "Fivetran"),
+    # Second batch, verified live 2026-11-14 evening: Pinterest (74 India/remote
+    # roles, 7 of them intern/fresher), Coinbase (212 remote-leaning, 24 fresher
+    # titles), Grafana Labs, Reddit, Twilio, Anthropic and Dropbox (large remote
+    # pools), Figma, Lyft and Cloudflare (fresher-title variety).
+    ("pinterest", "Pinterest"),
+    ("coinbase", "Coinbase"),
+    ("grafanalabs", "Grafana Labs"),
+    ("reddit", "Reddit"),
+    ("twilio", "Twilio"),
+    ("anthropic", "Anthropic"),
+    ("dropbox", "Dropbox"),
+    ("figma", "Figma"),
+    ("lyft", "Lyft"),
+    ("cloudflare", "Cloudflare"),
 ]
 
 _FRESHER_RE = re.compile(
@@ -113,7 +127,8 @@ def _normalize_job(raw, slug, company, fetched_at):
 
 
 def fetch_board_jobs(slug, company, timeout=FETCH_TIMEOUT):
-    """One request to one public board. Raises on any failure; caller decides."""
+    """One request to one public board, WITH full posting content. Raises on
+    any failure; caller decides."""
     if not re.fullmatch(r"[a-zA-Z0-9_-]+", slug):
         raise ValueError("Use a verified employer board slug, not a URL")
     url = f"https://boards-api.greenhouse.io/v1/boards/{slug}/jobs?content=true"
@@ -123,6 +138,44 @@ def fetch_board_jobs(slug, company, timeout=FETCH_TIMEOUT):
         payload = json.load(response)
     fetched_at = datetime.now(timezone.utc).isoformat()
     return [_normalize_job(j, slug, company, fetched_at) for j in payload.get("jobs", [])]
+
+
+def _get_json(url, timeout):
+    request = Request(url, headers={"Accept": "application/json",
+                                    "User-Agent": USER_AGENT})
+    with urlopen(request, timeout=timeout) as response:
+        return json.load(response)
+
+
+def fetch_board_titles(slug, company, timeout=FETCH_TIMEOUT):
+    """One request to one public board, titles/locations only (small and fast,
+    even for boards with hundreds of postings). Descriptions and auto-extracted
+    requirements are filled in later for the shortlisted jobs only."""
+    if not re.fullmatch(r"[a-zA-Z0-9_-]+", slug):
+        raise ValueError("Use a verified employer board slug, not a URL")
+    payload = _get_json(
+        f"https://boards-api.greenhouse.io/v1/boards/{slug}/jobs", timeout)
+    fetched_at = datetime.now(timezone.utc).isoformat()
+    return [_normalize_job(j, slug, company, fetched_at) for j in payload.get("jobs", [])]
+
+
+def fetch_job_detail(slug, raw_id, timeout=FETCH_TIMEOUT):
+    """The full content of ONE posting - used to hydrate shortlisted cards."""
+    return _get_json(
+        f"https://boards-api.greenhouse.io/v1/boards/{slug}/jobs/{raw_id}", timeout)
+
+
+def _hydrate(job, timeout=FETCH_TIMEOUT):
+    """Fill a title-only job's description and auto-extracted requirements from
+    its single-posting endpoint. On any failure the card keeps its title-only
+    form (thin but honest) instead of breaking the whole fetch."""
+    try:
+        raw = fetch_job_detail(job["board"], job["id"].rsplit("-", 1)[-1],
+                               timeout=timeout)
+        return _normalize_job(raw, job["board"], job["company"],
+                              job["fetched_at"])
+    except Exception:
+        return job
 
 
 def _tier(job):
@@ -146,7 +199,7 @@ def is_india_remote(job):
     return bool(_INDIA_REMOTE_RE.search(job.get("location", "")))
 
 
-def select_fresher_jobs(jobs, limit=15, per_board_cap=4):
+def select_fresher_jobs(jobs, limit=18, per_board_cap=3):
     """Pick a fresher-relevant, India/remote-leaning shortlist, deterministic,
     with variety across boards."""
     tiered = sorted(jobs, key=lambda j: (_tier(j), j["board"], j["title"]))
@@ -155,10 +208,14 @@ def select_fresher_jobs(jobs, limit=15, per_board_cap=4):
         if _tier(job) == 4:
             break
         board = job["board"]
-        if _tier(job) >= 2 and counts.get(board, 0) >= per_board_cap:
-            continue
+        # The variety cap applies only to tier >= 2 picks: tier-1 cards
+        # (fresher title AND India/remote) are the point of the app, so a
+        # company with many of them never gets its best cards suppressed.
+        if _tier(job) >= 2:
+            if counts.get(board, 0) >= per_board_cap:
+                continue
+            counts[board] = counts.get(board, 0) + 1
         picked.append(job)
-        counts[board] = counts.get(board, 0) + 1
         if len(picked) >= limit:
             break
     return picked
@@ -170,14 +227,34 @@ def fetch_live_jobs(boards=None, timeout=FETCH_TIMEOUT):
     Never raises for a failing board; 'jobs' is empty only if nothing usable
     came back from any board (the caller then falls back to fixtures)."""
     boards = boards if boards is not None else DEFAULT_BOARDS
-    all_jobs, boards_ok, boards_failed = [], [], []
-    for slug, company in boards:
+    # Two stages, both concurrent, still exactly one polite request per board
+    # plus one small request per shortlisted card:
+    #   1. title/location lists - small even for 900-posting boards, so the
+    #      cold-cache wait stays seconds, not a minute;
+    #   2. full posting content for the ~18 shortlisted cards only.
+    # map() keeps results in board order, so boards_ok / boards_failed stay
+    # deterministic.
+    from concurrent.futures import ThreadPoolExecutor
+
+    def _one(board):
+        slug, company = board
         try:
-            all_jobs.extend(fetch_board_jobs(slug, company, timeout=timeout))
-            boards_ok.append(company)
+            return company, fetch_board_titles(slug, company, timeout=timeout), None
         except Exception:
-            boards_failed.append(company)
-    return {"jobs": select_fresher_jobs(all_jobs),
+            return company, None, True
+
+    all_jobs, boards_ok, boards_failed = [], [], []
+    with ThreadPoolExecutor(max_workers=9) as pool:
+        for company, jobs, failed in pool.map(_one, boards):
+            if failed:
+                boards_failed.append(company)
+            else:
+                boards_ok.append(company)
+                all_jobs.extend(jobs)
+    picked = select_fresher_jobs(all_jobs)
+    with ThreadPoolExecutor(max_workers=9) as pool:
+        hydrated = list(pool.map(lambda j: _hydrate(j, timeout=timeout), picked))
+    return {"jobs": hydrated,
             "boards_ok": boards_ok, "boards_failed": boards_failed}
 
 
